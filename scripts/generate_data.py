@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
-# scripts/generate_data.py
 import json
 import requests
 import os
 from datetime import datetime
 
-# 設定
-NEWS_API_KEY = os.environ.get("NEWS_API_KEY", "")  # GitHub Actions では secrets を環境変数に設定する
 TIMEOUT = 10
+
+NEWS_API_KEY = os.environ.get("NEWS_API_KEY", "")
 
 def safe_get(url, params=None):
     try:
@@ -15,63 +14,87 @@ def safe_get(url, params=None):
         r.raise_for_status()
         return r.json()
     except Exception as e:
-        # 必要ならログ出力
-        print(f"[WARN] request failed: {url} -> {e}")
+        print(f"[WARN] GET failed: {url} -> {e}")
         return None
 
+# -----------------------------
+# 1. ニュース（NewsAPI）
+# -----------------------------
 def fetch_news():
     if not NEWS_API_KEY:
-        print("[INFO] NEWS_API_KEY not set, returning empty news list")
         return []
     url = "https://newsapi.org/v2/top-headlines"
     params = {"country": "jp", "apiKey": NEWS_API_KEY, "pageSize": 20}
-    res = safe_get(url, params=params)
-    if not res:
-        return []
-    return res.get("articles", [])
+    res = safe_get(url, params)
+    return res.get("articles", []) if res else []
 
-def fetch_prices(tickers):
+# -----------------------------
+# 2. 株価（Yahoo Finance）
+# -----------------------------
+def fetch_prices():
+    tickers = [
+        "^N225", "9984.T", "8306.T", "7203.T",
+        "6758.T", "9432.T", "7974.T", "6861.T"
+    ]
     prices = {}
     for t in tickers:
-        try:
-            url = f"https://query1.finance.yahoo.com/v8/finance/chart/{t}"
-            res = safe_get(url)
-            prices[t] = res if res is not None else {}
-        except Exception as e:
-            print(f"[WARN] price fetch error for {t}: {e}")
-            prices[t] = {}
+        url = f"https://query1.finance.yahoo.com/v8/finance/chart/{t}"
+        res = safe_get(url)
+        prices[t] = res if res else {}
     return prices
 
+# -----------------------------
+# 3. SBI S株向けデータ（単元未満株の人気ランキング）
+# -----------------------------
+def fetch_sbi_s_stock():
+    # SBI証券のランキングAPIは非公開のため、代替として
+    # “S株で人気の銘柄リスト” を構造化して提供
+    return {
+        "popular": [
+            "8306.T",  # 三菱UFJ
+            "7203.T",  # トヨタ
+            "9432.T",  # NTT
+            "9984.T",  # ソフトバンクG
+            "6758.T",  # ソニー
+        ],
+        "note": "S株は単元未満株のため、少額分散投資に向く"
+    }
+
+# -----------------------------
+# 4. トレンド（Google Trends 代替）
+# -----------------------------
+def fetch_trend():
+    return {
+        "keywords": ["株価", "円安", "インフレ", "日経平均", "S株"],
+        "generated_at": datetime.utcnow().isoformat() + "Z"
+    }
+
+# -----------------------------
+# 5. 経済指標（TradingEconomics）
+# -----------------------------
 def fetch_macro():
-    # TradingEconomics の guest API を例示
     url = "https://api.tradingeconomics.com/japan/indicators"
     params = {"c": "guest:guest"}
-    res = safe_get(url, params=params)
-    return res if res is not None else {}
+    res = safe_get(url, params)
+    return res if res else []
 
+# -----------------------------
+# 6. メイン処理
+# -----------------------------
 def main():
-    data = {}
-    # ニュース
-    data["news"] = fetch_news()
+    data = {
+        "news": fetch_news(),
+        "price": fetch_prices(),
+        "trend": fetch_trend(),
+        "macro": fetch_macro(),
+        "s_stock": fetch_sbi_s_stock(),
+        "generated_at": datetime.utcnow().isoformat() + "Z"
+    }
 
-    # 株価（例としていくつかのティッカー）
-    tickers = ["^N225", "9984.T", "8306.T", "7203.T"]
-    data["price"] = fetch_prices(tickers)
+    with open("data.json", "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
 
-    # トレンド（ここは後で Google Trends 等に差し替え可能）
-    data["trend"] = {"keywords": ["株価", "円安", "インフレ"], "generated_at": datetime.utcnow().isoformat() + "Z"}
-
-    # マクロ指標
-    data["macro"] = fetch_macro()
-
-    # ファイル出力
-    out_path = "data.json"
-    try:
-        with open(out_path, "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
-        print(f"[OK] wrote {out_path}")
-    except Exception as e:
-        print(f"[ERROR] failed to write {out_path}: {e}")
+    print("[OK] data.json generated")
 
 if __name__ == "__main__":
     main()
