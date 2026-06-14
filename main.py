@@ -24,16 +24,29 @@ def fetch_news(keyword):
 # ================================
 def fetch_price(symbol):
     url = f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}?interval=1d&range=7d"
-    r = requests.get(url).json()
+    r = requests.get(url)
 
-    result = r["chart"]["result"][0]
-    closes = result["indicators"]["quote"][0]["close"]
-    timestamps = result["timestamp"]
+    # ★ Yahoo が空レスポンスを返した場合の対策
+    if r.status_code != 200 or not r.text.strip():
+        return [{"date": "N/A", "close": None}]
+
+    try:
+        data = r.json()
+    except:
+        return [{"date": "N/A", "close": None}]
+
+    try:
+        result = data["chart"]["result"][0]
+        closes = result["indicators"]["quote"][0]["close"]
+        timestamps = result["timestamp"]
+    except:
+        return [{"date": "N/A", "close": None}]
 
     prices = []
     for t, c in zip(timestamps, closes):
         day = datetime.fromtimestamp(t).strftime("%Y-%m-%d")
         prices.append({"date": day, "close": c})
+
     return prices
 
 
