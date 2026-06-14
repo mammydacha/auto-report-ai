@@ -88,40 +88,20 @@ def fetch_macro():
 # 5. AI 要約（LLM API）
 # ================================
 def ai_summarize(data):
-    print("DEBUG_KEY:", os.getenv("LLM_API_KEY"))
+    import requests
+    import json
 
-    url = "https://api.openai.com/v1/chat/completions"
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {os.getenv('LLM_API_KEY')}"
-    }
+    prompt = f"以下のデータを元に日本語でレポートを作成してください:\n\n{json.dumps(data, ensure_ascii=False)}"
 
     payload = {
-        "model": "gpt-4o-mini",
-        "messages": [
-            {
-                "role": "user",
-                "content": f"以下のデータを元に日本語でレポートを作成してください:\n\n{json.dumps(data, ensure_ascii=False)}"
-            }
-        ]
+        "model": "llama3",
+        "prompt": prompt
     }
 
-    r = requests.post(url, headers=headers, json=payload)
+    r = requests.post("http://localhost:11434/api/generate", json=payload)
+    res = r.json()
 
-    try:
-        res = r.json()
-    except:
-        return "AI応答の解析に失敗しました。"
-
-    print("RAW_RESPONSE:", res)
-
-    if "error" in res:
-        return f"AIエラー: {res['error'].get('message', '不明なエラー')}"
-
-    try:
-        return res["choices"][0]["message"]["content"]
-    except:
-        return "AI応答に content が含まれていません。"
+    return res.get("response", "レポート生成に失敗しました")
 
 
 # ================================
