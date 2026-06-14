@@ -10,6 +10,9 @@ def load_data():
 
 # --- Ollama でレポート生成 ---
 def ai_summarize(data):
+    import requests
+    import json
+
     prompt = f"""
 以下のデータを元に、日本語で投資家向けレポートを作成してください。
 
@@ -35,14 +38,25 @@ def ai_summarize(data):
 
     payload = {
         "model": "llama3",
-        "prompt": prompt
+        "prompt": prompt,
+        "stream": True
     }
 
-    # Ollama API に送信
-    r = requests.post("http://localhost:11434/api/generate", json=payload)
-    res = r.json()
+    # ストリームで受け取る
+    r = requests.post("http://localhost:11434/api/generate", json=payload, stream=True)
 
-    return res.get("response", "レポート生成に失敗しました")
+    full_text = ""
+
+    for line in r.iter_lines():
+        if not line:
+            continue
+        try:
+            obj = json.loads(line.decode("utf-8"))
+            full_text += obj.get("response", "")
+        except:
+            pass
+
+    return full_text if full_text else "レポート生成に失敗しました"
 
 # --- レポート保存 ---
 def save_report(text):
