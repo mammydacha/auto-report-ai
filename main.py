@@ -1,132 +1,66 @@
-import requests
-import json
-from datetime import datetime
 import os
+import json
+import requests
+from datetime import datetime
 
-# ================================
-# 1. ニュース取得（Google News RSS）
-# ================================
-def fetch_news(keyword):
-    url = f"https://news.google.com/rss/search?q={keyword}"
-    r = requests.get(url)
-    text = r.text
+# --- データ取得（あなたの元の処理をそのまま使う想定） ---
+def load_data():
+    with open("data.json", "r", encoding="utf-8") as f:
+        return json.load(f)
 
-    items = []
-    for line in text.split("<item>")[1:]:
-        title = line.split("<title>")[1].split("</title>")[0]
-        pub = line.split("<pubDate>")[1].split("</pubDate>")[0]
-        items.append({"title": title, "date": pub})
-    return items[:10]
-
-
-# ================================
-# 2. 株価取得（Yahoo Finance）
-# ================================
-def fetch_price(symbol):
-    url = f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}?interval=1d&range=7d"
-    r = requests.get(url)
-
-    # ★ Yahoo が空レスポンスを返した場合の対策
-    if r.status_code != 200 or not r.text.strip():
-        return [{"date": "N/A", "close": None}]
-
-    try:
-        data = r.json()
-    except:
-        return [{"date": "N/A", "close": None}]
-
-    try:
-        result = data["chart"]["result"][0]
-        closes = result["indicators"]["quote"][0]["close"]
-        timestamps = result["timestamp"]
-    except:
-        return [{"date": "N/A", "close": None}]
-
-    prices = []
-    for t, c in zip(timestamps, closes):
-        day = datetime.fromtimestamp(t).strftime("%Y-%m-%d")
-        prices.append({"date": day, "close": c})
-
-    return prices
-
-
-# ================================
-# 3. トレンド取得（Bing Trends）
-# ================================
-def fetch_trend(keyword):
-    url = f"https://api.bing.com/osjson.aspx?query={keyword}"
-    r = requests.get(url).json()
-    suggestions = r[1]
-    return suggestions[:10]
-
-
-# ================================
-# 4. 経済指標（TradingEconomics）
-# ================================
-def fetch_macro():
-    url = "https://api.tradingeconomics.com/markets/country/japan"
-    r = requests.get(url)
-
-    # ★ 空レスポンスやエラー対策
-    if r.status_code != 200 or not r.text.strip():
-        return [{"indicator": "N/A", "value": None}]
-
-    try:
-        data = r.json()
-    except:
-        return [{"indicator": "N/A", "value": None}]
-
-    # データが空の場合
-    if not isinstance(data, list) or len(data) == 0:
-        return [{"indicator": "N/A", "value": None}]
-
-    # 上位5件だけ返す
-    return data[:5]
-
-
-# ================================
-# 5. AI 要約（LLM API）
-# ================================
+# --- Ollama でレポート生成 ---
 def ai_summarize(data):
-    import requests
-    import json
+    prompt = f"""
+以下のデータを元に、日本語で投資家向けレポートを作成してください。
 
-    prompt = f"以下のデータを元に日本語でレポートを作成してください:\n\n{json.dumps(data, ensure_ascii=False)}"
+【ニュース】
+{json.dumps(data.get("news", {}), ensure_ascii=False)}
+
+【株価】
+{json.dumps(data.get("price", {}), ensure_ascii=False)}
+
+【トレンド】
+{json.dumps(data.get("trend", {}), ensure_ascii=False)}
+
+【経済指標】
+{json.dumps(data.get("macro", {}), ensure_ascii=False)}
+
+構成：
+1. ニュース概要
+2. 株価の動き
+3. トレンド
+4. 経済指標
+5. 総合評価
+"""
 
     payload = {
         "model": "llama3",
         "prompt": prompt
     }
 
+    # Ollama API に送信
     r = requests.post("http://localhost:11434/api/generate", json=payload)
     res = r.json()
 
     return res.get("response", "レポート生成に失敗しました")
 
-
-# ================================
-# 6. メイン処理
-# ================================
-def main():
-    keyword = "NVIDIA"
-
-    data = {
-        "news": fetch_news(keyword),
-        "price": fetch_price("NVDA"),
-        "trend": fetch_trend(keyword),
-        "macro": fetch_macro()
-    }
-
-    report = ai_summarize(data)
-
+# --- レポート保存 ---
+def save_report(text):
     today = datetime.now().strftime("%Y-%m-%d")
+    path = f"reports/{today}.md"
+
     os.makedirs("reports", exist_ok=True)
 
-    with open(f"reports/{today}.md", "w", encoding="utf-8") as f:
-        f.write(report)
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(text)
 
-    print("レポート生成完了:", today)
+    print(f"Saved report: {path}")
 
+# --- メイン処理 ---
+def main():
+    data = load_data()
+    report = ai_summarize(data)
+    save_report(report)
 
 if __name__ == "__main__":
     main()
