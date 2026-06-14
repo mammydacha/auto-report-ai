@@ -2,29 +2,59 @@ name: Generate Report
 
 on:
   schedule:
-    - cron: "0 0 * * *"   # 毎日 09:00 JST（UTC 0:00）
+    - cron: "0 0 * * *"
   workflow_dispatch:
 
 jobs:
-  build:
+  run-report:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v3
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: "3.10"
-
       - name: Install dependencies
         run: |
-          pip install torch transformers accelerate
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake wget
 
-      - name: Run report generator
+      - name: Download llama.cpp
         run: |
-          python main.py --mode all
+          git clone https://github.com/ggerganov/llama.cpp
+          cd llama.cpp
+          make -j4
+
+      - name: Download TinyLlama model (gguf)
+        run: |
+          mkdir -p models
+          wget -O models/tinyllama.gguf \
+            https://huggingface.co/TheBloke/TinyLlama-1.1B-Chat-v1.0-GGUF/resolve/main/tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf
+
+      - name: Prepare prompt
+        run: |
+          DATE=$(date +'%Y-%m-%d')
+          TREND=$(cat data/trend.txt)
+          SOURCES=$(cat data/sources.txt)
+
+          sed -e "s/{{DATE}}/$DATE/" \
+              -e "s|{{TREND_DIAGRAM}}|$TREND|" \
+              -e "s|{{SOURCE_LIST}}|$SOURCES|" \
+              prompt/prompt_production.txt > prompt/filled_prompt.txt
+
+      - name: Run model
+        run: |
+          cd llama.cpp
+          ./main \
+            -m ../models/tinyllama.gguf \
+            -p "$(cat ../prompt/filled_prompt.txt)" \
+            -n 1200 \
+            -temp 0.7 \
+            > ../report.md
+
+      - name: Save report
+        run: |
+          mkdir -p reports
+          cp report.md reports/$(date +'%Y-%m-%d')_report.md
 
       - name: Commit report
         run: |
@@ -32,4 +62,4 @@ jobs:
           git config --local user.name "GitHub Actions"
           git add reports/*.md
           git commit -m "Daily report" || echo "No changes"
-          git push 
+          git push
