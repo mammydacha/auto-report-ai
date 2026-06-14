@@ -88,30 +88,41 @@ def fetch_macro():
 # 5. AI 要約（LLM API）
 # ================================
 def ai_summarize(data):
-    print("DEBUG_KEY:", os.getenv("LLM_API_KEY"))  # ← これ追加
+    print("DEBUG_KEY:", os.getenv("LLM_API_KEY"))
+
     url = "https://api.openai.com/v1/chat/completions"
-    prompt = f"""
-以下のデータをもとに、日本語で投資家向けレポートを作成してください。
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {os.getenv('LLM_API_KEY')}"
+    }
 
-【ニュース】
-{json.dumps(data["news"], ensure_ascii=False)}
+    payload = {
+        "model": "gpt-4o-mini",
+        "messages": [
+            {
+                "role": "user",
+                "content": f"以下のデータを元に日本語でレポートを作成してください:\n\n{json.dumps(data, ensure_ascii=False)}"
+            }
+        ]
+    }
 
-【株価】
-{json.dumps(data["price"], ensure_ascii=False)}
+    r = requests.post(url, headers=headers, json=payload)
 
-【トレンド】
-{json.dumps(data["trend"], ensure_ascii=False)}
+    try:
+        res = r.json()
+    except:
+        return "AI応答の解析に失敗しました。"
 
-【経済指標】
-{json.dumps(data["macro"], ensure_ascii=False)}
+    print("RAW_RESPONSE:", res)
 
-構成：
-1. ニュース概要
-2. 株価の動き
-3. トレンド
-4. 経済指標
-5. 総合評価
-"""
+    if "error" in res:
+        return f"AIエラー: {res['error'].get('message', '不明なエラー')}"
+
+    try:
+        return res["choices"][0]["message"]["content"]
+    except:
+        return "AI応答に content が含まれていません。"
+
 
     # ★ あなたの LLM API キーを環境変数に入れておく必要あり
     api_key = os.getenv("LLM_API_KEY")
