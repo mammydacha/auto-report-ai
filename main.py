@@ -65,8 +65,23 @@ def fetch_trend(keyword):
 # ================================
 def fetch_macro():
     url = "https://api.tradingeconomics.com/markets/country/japan"
-    r = requests.get(url).json()
-    return r[:5]
+    r = requests.get(url)
+
+    # ★ 空レスポンスやエラー対策
+    if r.status_code != 200 or not r.text.strip():
+        return [{"indicator": "N/A", "value": None}]
+
+    try:
+        data = r.json()
+    except:
+        return [{"indicator": "N/A", "value": None}]
+
+    # データが空の場合
+    if not isinstance(data, list) or len(data) == 0:
+        return [{"indicator": "N/A", "value": None}]
+
+    # 上位5件だけ返す
+    return data[:5]
 
 
 # ================================
