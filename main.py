@@ -124,23 +124,6 @@ def ai_summarize(data):
         return "AI応答に content が含まれていません。"
 
 
-    # ★ あなたの LLM API キーを環境変数に入れておく必要あり
-    api_key = os.getenv("LLM_API_KEY")
-
-    res = requests.post(
-        "https://api.openai.com/v1/chat/completions",
-        headers={"Authorization": f"Bearer {api_key}"},
-        json={
-            "model": "gpt-4o-mini",
-            "messages": [{"role": "user", "content": prompt}]
-        }
-    ).json()
-
-print("RAW_RESPONSE:", res)
-    
-    return res["choices"][0]["message"]["content"]
-
-
 # ================================
 # 6. メイン処理
 # ================================
