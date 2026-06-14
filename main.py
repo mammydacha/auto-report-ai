@@ -125,6 +125,8 @@ def ai_summarize(data):
         }
     ).json()
 
+print("RAW_RESPONSE:", res)
+    
     return res["choices"][0]["message"]["content"]
 
 
