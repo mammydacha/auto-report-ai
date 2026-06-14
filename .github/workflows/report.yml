@@ -2,7 +2,7 @@ name: Auto Report
 
 on:
   schedule:
-    - cron: "0 0 * * *"   # 毎日 09:00 JST
+    - cron: "0 0 * * *"
   workflow_dispatch:
 
 jobs:
@@ -13,18 +13,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # --- Ollama をインストールして起動 ---
       - name: Install Ollama
         run: |
           curl -fsSL https://ollama.com/install.sh | sh
           ollama serve &
           sleep 5
 
-      # --- 無料モデル llama3 を pull ---
       - name: Pull model
         run: ollama pull llama3
 
-      # --- Python セットアップ ---
       - name: Setup Python
         uses: actions/setup-python@v4
         with:
@@ -33,11 +30,14 @@ jobs:
       - name: Install dependencies
         run: pip install requests
 
-      # --- レポート生成スクリプト実行 ---
+      - name: Generate data.json
+        run: python3 scripts/generate_data.py
+        env:
+          NEWS_API_KEY: ${{ secrets.NEWS_API_KEY }}
+
       - name: Run script
         run: python main.py
 
-      # --- レポートをコミット ---
       - name: Commit report
         run: |
           git config --local user.email "action@github.com"
