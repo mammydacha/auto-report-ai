@@ -13,6 +13,18 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # --- Ollama をインストールして起動 ---
+      - name: Install Ollama
+        run: |
+          curl -fsSL https://ollama.com/install.sh | sh
+          ollama serve &
+          sleep 5
+
+      # --- 無料モデル llama3 を pull ---
+      - name: Pull model
+        run: ollama pull llama3
+
+      # --- Python セットアップ ---
       - name: Setup Python
         uses: actions/setup-python@v4
         with:
@@ -21,11 +33,11 @@ jobs:
       - name: Install dependencies
         run: pip install requests
 
+      # --- レポート生成スクリプト実行 ---
       - name: Run script
-        env:
-          LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
         run: python main.py
 
+      # --- レポートをコミット ---
       - name: Commit report
         run: |
           git config --local user.email "action@github.com"
