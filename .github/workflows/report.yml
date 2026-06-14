@@ -22,7 +22,10 @@ jobs:
         run: |
           git clone https://github.com/ggerganov/llama.cpp
           cd llama.cpp
-          make -j4
+          mkdir build
+          cd build
+          cmake ..
+          cmake --build . --config Release
 
       - name: Download TinyLlama model (gguf)
         run: |
@@ -43,13 +46,13 @@ jobs:
 
       - name: Run model
         run: |
-          cd llama.cpp
-          ./main \
-            -m ../models/tinyllama.gguf \
-            -p "$(cat ../prompt/filled_prompt.txt)" \
+          cd llama.cpp/build
+          ./bin/main \
+            -m ../../models/tinyllama.gguf \
+            -p "$(cat ../../prompt/filled_prompt.txt)" \
             -n 1200 \
             -temp 0.7 \
-            > ../report.md
+            > ../../report.md
 
       - name: Save report
         run: |
