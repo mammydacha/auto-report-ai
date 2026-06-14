@@ -88,6 +88,8 @@ def fetch_macro():
 # 5. AI 要約（LLM API）
 # ================================
 def ai_summarize(data):
+    print("DEBUG_KEY:", os.getenv("LLM_API_KEY"))  # ← これ追加
+    url = "https://api.openai.com/v1/chat/completions"
     prompt = f"""
 以下のデータをもとに、日本語で投資家向けレポートを作成してください。
 
