@@ -129,12 +129,12 @@ jobs:
           envsubst < prompt/prompt_production.txt > prompt/filled_prompt.txt
 
       # -----------------------------
-      # モデル実行
+      # モデル実行（llama-cli）
       # -----------------------------
       - name: Run model
         run: |
           cd llama.cpp/build
-          ./bin/main \
+          ./bin/llama-cli \
             -m ../../models/tinyllama.gguf \
             -p "$(cat ../../prompt/filled_prompt.txt)" \
             -n 1200 \
