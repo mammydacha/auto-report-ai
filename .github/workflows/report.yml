@@ -71,6 +71,22 @@ jobs:
             printf "日経225連動型：%s 億円\n", $3
           }' > data/etf.txt
 
+      - name: Generate ASCII charts
+        run: |
+          awk -F',' '{
+            val=$2; bars=int(val/500);
+            printf "海外投資家（現物）: %s 億円\n  ", val;
+            for(i=0;i<bars;i++) printf "■";
+            printf "\n";
+          }' data/jpx_cash.csv > data/chart_institutional.txt
+
+          awk -F',' '{
+            val=$2; bars=int(val/500);
+            printf "海外投資家（先物）: %s 枚\n  ", val;
+            for(i=0;i<bars;i++) printf "■";
+            printf "\n";
+          }' data/jpx_futures.csv > data/chart_futures.txt
+
       - name: Prepare prompt
         run: |
           export DATE=$(date +'%Y-%m-%d')
@@ -79,6 +95,8 @@ jobs:
           export INSTITUTIONAL="$(cat data/institutional.txt)"
           export FUTURES="$(cat data/futures.txt)"
           export ETF="$(cat data/etf.txt)"
+          export CHART_INSTITUTIONAL="$(cat data/chart_institutional.txt)"
+          export CHART_FUTURES="$(cat data/chart_futures.txt)"
 
           envsubst < prompt/prompt_production.txt > prompt/filled_prompt.txt
 
