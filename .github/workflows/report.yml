@@ -66,3 +66,22 @@ jobs:
           git add reports/*.md
           git commit -m "Daily report" || echo "No changes"
           git push
+          
+      - name: Fetch institutional investor data
+        run: |
+          mkdir -p data
+
+          # JPX の投資主体別売買動向（現物）の最新 CSV を取得
+          wget -O data/jpx.csv \
+            https://www.jpx.co.jp/markets/statistics-equities/investor-type/b5b4pj0000045v4j-att/data_j.csv
+
+          # 必要な列だけ抽出して整形
+          # CSV の例:
+          # 日付,海外投資家,個人,信託銀行,投資信託,...
+          tail -n 1 data/jpx.csv | awk -F',' '{
+            printf "【投資主体別売買動向（最新週）】\n"
+            printf "海外投資家：%s 億円\n", $2
+            printf "個人投資家：%s 億円\n", $3
+            printf "信託銀行：%s 億円\n", $4
+            printf "投資信託：%s 億円\n", $5
+          }' > data/institutional.txt
