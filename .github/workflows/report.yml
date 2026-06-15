@@ -41,7 +41,7 @@ jobs:
           mkdir -p data
 
           HTML=$(curl -s https://www.jpx.co.jp/markets/statistics-equities/investor-type/)
-          CSV_PATH=$(echo "$HTML" | grep -o '/markets/statistics-equities/investor-type/[^"]*\.csv' | head -n 1)
+          CSV_PATH=$(echo "$HTML" | grep -oP '/markets/statistics-equities/investor-type/[^"]+\.csv' | head -n 1)
           CSV_URL="https://www.jpx.co.jp${CSV_PATH}"
 
           echo "現物 CSV URL: $CSV_URL"
@@ -61,7 +61,7 @@ jobs:
       - name: Fetch futures investor data (先物)
         run: |
           HTML=$(curl -s https://www.jpx.co.jp/markets/statistics-derivatives/investor-type/)
-          CSV_PATH=$(echo "$HTML" | grep -o '/markets/statistics-derivatives/investor-type/[^"]*\.csv' | head -n 1)
+          CSV_PATH=$(echo "$HTML" | grep -oP '/markets/statistics-derivatives/investor-type/[^"]+\.csv' | head -n 1)
           CSV_URL="https://www.jpx.co.jp${CSV_PATH}"
 
           echo "先物 CSV URL: $CSV_URL"
@@ -81,7 +81,7 @@ jobs:
       - name: Fetch ETF flow data
         run: |
           HTML=$(curl -s https://www.jpx.co.jp/markets/etfs-etns/etfs/)
-          CSV_PATH=$(echo "$HTML" | grep -o '/markets/etfs-etns/etfs/[^"]*\.csv' | head -n 1)
+          CSV_PATH=$(echo "$HTML" | grep -oP '/markets/etfs-etns/etfs/[^"]+\.csv' | head -n 1)
           CSV_URL="https://www.jpx.co.jp${CSV_PATH}"
 
           echo "ETF CSV URL: $CSV_URL"
@@ -129,16 +129,16 @@ jobs:
           envsubst < prompt/prompt_production.txt > prompt/filled_prompt.txt
 
       # -----------------------------
-      # モデル実行（llama-cli）
+      # モデル実行（llama-cli 最新仕様）
       # -----------------------------
       - name: Run model
         run: |
           cd llama.cpp/build
           ./bin/llama-cli \
             -m ../../models/tinyllama.gguf \
-            -p "$(cat ../../prompt/filled_prompt.txt)" \
-            -n 1200 \
-            -temp 0.7 \
+            --prompt "$(cat ../../prompt/filled_prompt.txt)" \
+            --n-predict 1200 \
+            --temp 0.7 \
             > ../../report.md
 
       # -----------------------------
