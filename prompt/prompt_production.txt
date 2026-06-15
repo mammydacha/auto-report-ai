@@ -68,7 +68,13 @@ FEW-SHOT EXAMPLE:
 - https://example.com/article1
 - https://example.com/article2
 
-## 6 機関投資家の動き
+## 6 機関投資家（現物）
 {{INSTITUTIONAL}}
+
+## 7 機関投資家（先物）
+{{FUTURES}}
+
+## 8 ETF資金流入
+{{ETF}}
 
 END OF PROMPT
