@@ -68,4 +68,7 @@ FEW-SHOT EXAMPLE:
 - https://example.com/article1
 - https://example.com/article2
 
+## 6 機関投資家の動き
+{{INSTITUTIONAL}}
+
 END OF PROMPT
