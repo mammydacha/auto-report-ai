@@ -38,6 +38,7 @@ jobs:
           DATE=$(date +'%Y-%m-%d')
           TREND=$(cat data/trend.txt)
           SOURCES=$(cat data/sources.txt)
+          export INSTITUTIONAL="$(cat data/institutional.txt)"
 
           sed -e "s/{{DATE}}/$DATE/" \
               -e "s|{{TREND_DIAGRAM}}|$TREND|" \
