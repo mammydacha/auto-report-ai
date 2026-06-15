@@ -16,7 +16,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential cmake wget gettext
+          sudo apt-get install -y build-essential cmake wget gettext curl grep sed
 
       - name: Download llama.cpp
         run: |
@@ -33,11 +33,18 @@ jobs:
           wget -O models/tinyllama.gguf \
             https://huggingface.co/TheBloke/TinyLlama-1.1B-Chat-v1.0-GGUF/resolve/main/tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf
 
+      # -----------------------------
+      # 現物データ（投資主体別）を自動抽出
+      # -----------------------------
       - name: Fetch institutional investor data (現物)
         run: |
           mkdir -p data
-          wget -O data/jpx_cash.csv \
-            https://www.jpx.co.jp/markets/statistics-equities/investor-type/b5b4pj0000045v4j-att/data_j.csv
+
+          HTML=$(curl -s https://www.jpx.co.jp/markets/statistics-equities/investor-type/)
+          CSV_URL=$(echo "$HTML" | grep -o 'https://.*data_j.*\.csv' | head -n 1)
+
+          echo "現物 CSV URL: $CSV_URL"
+          curl -L "$CSV_URL" -o data/jpx_cash.csv
 
           tail -n 1 data/jpx_cash.csv | awk -F',' '{
             printf "【投資主体別売買動向（現物・最新週）】\n"
@@ -47,10 +54,16 @@ jobs:
             printf "投資信託：%s 億円\n", $5
           }' > data/institutional.txt
 
+      # -----------------------------
+      # 先物データ（投資主体別）を自動抽出
+      # -----------------------------
       - name: Fetch futures investor data (先物)
         run: |
-          wget -O data/jpx_futures.csv \
-            https://www.jpx.co.jp/markets/statistics-derivatives/investor-type/b5b4pj0000045v4j-att/data_f.csv
+          HTML=$(curl -s https://www.jpx.co.jp/markets/statistics-derivatives/investor-type/)
+          CSV_URL=$(echo "$HTML" | grep -o 'https://.*data_f.*\.csv' | head -n 1)
+
+          echo "先物 CSV URL: $CSV_URL"
+          curl -L "$CSV_URL" -o data/jpx_futures.csv
 
           tail -n 1 data/jpx_futures.csv | awk -F',' '{
             printf "【投資主体別売買動向（先物・最新週）】\n"
@@ -60,10 +73,16 @@ jobs:
             printf "投資信託：%s 枚\n", $5
           }' > data/futures.txt
 
+      # -----------------------------
+      # ETF 資金流入データを自動抽出
+      # -----------------------------
       - name: Fetch ETF flow data
         run: |
-          wget -O data/etf.csv \
-            https://www.jpx.co.jp/markets/etfs-etns/etfs/b5b4pj0000045v4j-att/data_etf.csv
+          HTML=$(curl -s https://www.jpx.co.jp/markets/etfs-etns/etfs/)
+          CSV_URL=$(echo "$HTML" | grep -o 'https://.*data_etf.*\.csv' | head -n 1)
+
+          echo "ETF CSV URL: $CSV_URL"
+          curl -L "$CSV_URL" -o data/etf.csv
 
           tail -n 1 data/etf.csv | awk -F',' '{
             printf "【ETF資金流入（最新日）】\n"
@@ -71,6 +90,9 @@ jobs:
             printf "日経225連動型：%s 億円\n", $3
           }' > data/etf.txt
 
+      # -----------------------------
+      # ASCII グラフ生成
+      # -----------------------------
       - name: Generate ASCII charts
         run: |
           awk -F',' '{
@@ -87,6 +109,9 @@ jobs:
             printf "\n";
           }' data/jpx_futures.csv > data/chart_futures.txt
 
+      # -----------------------------
+      # プロンプト生成
+      # -----------------------------
       - name: Prepare prompt
         run: |
           export DATE=$(date +'%Y-%m-%d')
@@ -100,6 +125,9 @@ jobs:
 
           envsubst < prompt/prompt_production.txt > prompt/filled_prompt.txt
 
+      # -----------------------------
+      # モデル実行
+      # -----------------------------
       - name: Run model
         run: |
           cd llama.cpp/build
@@ -110,11 +138,17 @@ jobs:
             -temp 0.7 \
             > ../../report.md
 
+      # -----------------------------
+      # レポート保存
+      # -----------------------------
       - name: Save report
         run: |
           mkdir -p reports
           cp report.md reports/$(date +'%Y-%m-%d')_report.md
 
+      # -----------------------------
+      # GitHub にコミット
+      # -----------------------------
       - name: Commit report
         run: |
           git config --local user.email "actions@github.com"
