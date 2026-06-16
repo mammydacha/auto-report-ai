@@ -16,16 +16,18 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential cmake wget gettext curl grep sed
+          sudo apt-get install -y wget gettext curl grep sed
 
-      - name: Download llama.cpp
+      # -----------------------------
+      # llama.cpp のビルドを完全に削除
+      # 事前ビルド済み llama-cli を使用
+      # -----------------------------
+      - name: Download prebuilt llama-cli
         run: |
-          git clone https://github.com/ggerganov/llama.cpp
-          cd llama.cpp
-          mkdir build
-          cd build
-          cmake ..
-          cmake --build . --config Release
+          mkdir -p llama-bin
+          wget -O llama-bin/llama-cli \
+            https://huggingface.co/ggerganov/llama.cpp/resolve/main/bin/linux-x64/llama-cli
+          chmod +x llama-bin/llama-cli
 
       - name: Download TinyLlama model (gguf)
         run: |
@@ -34,7 +36,7 @@ jobs:
             https://huggingface.co/TheBloke/TinyLlama-1.1B-Chat-v1.0-GGUF/resolve/main/tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf
 
       # -----------------------------
-      # 現物データ（投資主体別）を自動抽出
+      # 現物データ（投資主体別）
       # -----------------------------
       - name: Fetch institutional investor data (現物)
         run: |
@@ -44,7 +46,6 @@ jobs:
           CSV_PATH=$(echo "$HTML" | grep -oP '/markets/statistics-equities/investor-type/[^"]+\.csv' | head -n 1)
           CSV_URL="https://www.jpx.co.jp${CSV_PATH}"
 
-          echo "現物 CSV URL: $CSV_URL"
           curl -L "$CSV_URL" -o data/jpx_cash.csv
 
           tail -n 1 data/jpx_cash.csv | awk -F',' '{
@@ -56,7 +57,7 @@ jobs:
           }' > data/institutional.txt
 
       # -----------------------------
-      # 先物データ（投資主体別）を自動抽出
+      # 先物データ（投資主体別）
       # -----------------------------
       - name: Fetch futures investor data (先物)
         run: |
@@ -64,7 +65,6 @@ jobs:
           CSV_PATH=$(echo "$HTML" | grep -oP '/markets/statistics-derivatives/investor-type/[^"]+\.csv' | head -n 1)
           CSV_URL="https://www.jpx.co.jp${CSV_PATH}"
 
-          echo "先物 CSV URL: $CSV_URL"
           curl -L "$CSV_URL" -o data/jpx_futures.csv
 
           tail -n 1 data/jpx_futures.csv | awk -F',' '{
@@ -76,7 +76,7 @@ jobs:
           }' > data/futures.txt
 
       # -----------------------------
-      # ETF 資金流入データを自動抽出
+      # ETF 資金流入データ
       # -----------------------------
       - name: Fetch ETF flow data
         run: |
@@ -84,7 +84,6 @@ jobs:
           CSV_PATH=$(echo "$HTML" | grep -oP '/markets/etfs-etns/etfs/[^"]+\.csv' | head -n 1)
           CSV_URL="https://www.jpx.co.jp${CSV_PATH}"
 
-          echo "ETF CSV URL: $CSV_URL"
           curl -L "$CSV_URL" -o data/etf.csv
 
           tail -n 1 data/etf.csv | awk -F',' '{
@@ -129,17 +128,16 @@ jobs:
           envsubst < prompt/prompt_production.txt > prompt/filled_prompt.txt
 
       # -----------------------------
-      # モデル実行（llama-cli 最新仕様 / --file 対応）
+      # モデル実行（--file で安定動作）
       # -----------------------------
       - name: Run model
         run: |
-          cd llama.cpp/build
-          ./bin/llama-cli \
-            -m ../../models/tinyllama.gguf \
-            --file ../../prompt/filled_prompt.txt \
+          ./llama-bin/llama-cli \
+            -m models/tinyllama.gguf \
+            --file prompt/filled_prompt.txt \
             --n-predict 1200 \
             --temp 0.7 \
-            > ../../report.md
+            > report.md
 
       # -----------------------------
       # レポート保存
